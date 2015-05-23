@@ -1,1 +1,2 @@
-WTFPL
+some code is copied from falling.lua
+rest WTFPL
