@@ -3,7 +3,7 @@ local load_time_start = os.clock()
 local core = minetest
 
 local sound_count = 0
-local function play_node_sound(pos, name, cat, gain_multiplier)
+local function play_node_sound(pos, name, alt, gain_multiplier)
 	if sound_count > 50 then
 		return	-- fixes error message spam
 	end
@@ -15,7 +15,7 @@ local function play_node_sound(pos, name, cat, gain_multiplier)
 	if not sound then
 		return
 	end
-	sound = sound[cat]
+	sound = sound.drop or sound[alt]
 	if not sound then
 		return
 	end
