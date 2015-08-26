@@ -57,6 +57,32 @@ if not core.get_gravity then
 	end
 end
 
+local damage_near_players
+local enable_damage = core.setting_getbool("enable_damage")
+if enable_damage
+or enable_damage == nil then
+	function damage_near_players(np, fdmg)
+		local dmg = math.floor(math.abs(fdmg)+0.5)
+		if dmg < 1 then
+			return
+		end
+		for _,obj in pairs(core.get_objects_inside_radius(np, 2)) do
+			if obj:is_player() then
+				local pos = obj:getpos()
+				if math.abs(np.x-pos.x) < 0.45
+				and math.abs(np.z-pos.z) < 0.45
+				and pos.y < np.y+0.5
+				and pos.y > np.y-1.4 then
+					obj:set_hp(math.max(0, obj:get_hp()-dmg))
+				end
+			end
+		end
+	end
+else
+	function damage_near_players()
+	end
+end
+
 local falling_entity = core.registered_entities["__builtin:falling_node"]
 falling_entity.sound_volume = 1
 falling_entity.on_step = function(self, dtime)
@@ -123,11 +149,12 @@ falling_entity.on_step = function(self, dtime)
 				callback(np, n2, nil)
 			end
 		end
-		-- Play sound, set node and remove entity
+		-- Play sound, set node, remove entity and damage player(s)
 		play_node_sound(np, self.node.name, "dug", self.sound_volume)	-- The place sound sounds weird
 		core.add_node(np, self.node)
 		self.object:remove()
 		nodeupdate(np)
+		damage_near_players(np, self.sound_volume)
 		return
 	end
 	local vely = self.object:getvelocity().y
