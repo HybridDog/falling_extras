@@ -84,6 +84,7 @@ else
 end
 
 local falling_entity = core.registered_entities["__builtin:falling_node"]
+falling_entity.makes_footstep_sound = true
 falling_entity.sound_volume = 1
 falling_entity.on_step = function(self, dtime)
 	-- Set gravity
