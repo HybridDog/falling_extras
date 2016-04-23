@@ -170,10 +170,13 @@ core.register_entity(":__builtin:falling_node", falling_entity)
 
 
 -- mostly copied
-function nodeupdate_single(p, delay)
+function nodeupdate_single(p)
 	local n = core.get_node(p)
 	if core.get_item_group(n.name, "falling_node") ~= 0 then
-		local p_bottom = {x=p.x, y=p.y-math.sign(core.get_gravity()), z=p.z}
+
+		-- changed here
+		local p_bottom = {x = p.x, y = p.y-math.sign(core.get_gravity()), z = p.z}
+
 		local n_bottom = core.get_node(p_bottom)
 		-- Note: walkable is in the node definition, not in item groups
 		if core.registered_nodes[n_bottom.name] and
@@ -183,24 +186,23 @@ function nodeupdate_single(p, delay)
 					core.get_node_level(p_bottom) < core.get_node_max_level(p_bottom))) and
 				(not core.registered_nodes[n_bottom.name].walkable or
 					core.registered_nodes[n_bottom.name].buildable_to) then
-			if delay then
-				core.after(0.1, nodeupdate_single, {x=p.x, y=p.y, z=p.z}, false)
-			else
-				n.level = core.get_node_level(p)
-				core.remove_node(p)
-				spawn_falling_node(p, n)
-				nodeupdate(p)
-			end
+			n.level = core.get_node_level(p)
+			core.remove_node(p)
+			spawn_falling_node(p, n)
+			return true
 		end
 	end
 
 	if core.get_item_group(n.name, "attached_node") ~= 0 then
 		if not check_attached_node(p, n) then
 			drop_attached_node(p)
-			nodeupdate(p)
+			return true
 		end
 	end
+
+	return false
 end
+
 
 local time = math.floor(tonumber(os.clock()-load_time_start)*100+0.5)/100
 local msg = "[falling_extras] loaded after ca. "..time
