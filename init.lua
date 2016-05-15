@@ -150,10 +150,15 @@ falling_entity.on_step = function(self, dtime)
 				callback(np, n2, nil)
 			end
 		end
+		self.object:remove()
+		-- fix crashes if node isn't given
+		if not self.node.name then
+			minetest.log("error", "[falling extras] falling object near "..minetest.pos_to_string(np).." had no node…")
+			return
+		end
 		-- Play sound, set node, remove entity and damage player(s)
 		play_node_sound(np, self.node.name, "dug", self.sound_volume)	-- The place sound sounds weird
 		core.add_node(np, self.node)
-		self.object:remove()
 		nodeupdate(np)
 		damage_near_players(np, self.sound_volume)
 		return
