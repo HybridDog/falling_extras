@@ -87,23 +87,26 @@ local falling_entity = minetest.registered_entities["__builtin:falling_node"]
 falling_entity.makes_footstep_sound = true
 falling_entity.sound_volume = 1
 falling_entity.on_step = function(self, dtime)
-	-- Set acceleraiton according to gravity
-	local gravity = minetest.get_gravity()
-	self.object:setacceleration{x=0, y=-gravity, z=0}
-	-- Turn to actual sand when collides to ground or just move
-	local bcp = self.object:getpos()
-	bcp.y = bcp.y - 0.7 * math.sign(gravity) -- Position of bottom center point
-	local bcnn = minetest.get_node(bcp).name
-	local bcd = minetest.registered_nodes[bcnn]
-	if not bcd
-	or bcd.walkable
-	or (minetest.get_item_group(self.node.name, "float") ~= 0
-		and bcd.liquidtype ~= "none"
-	) then
+	-- Set gravity
+	local acceleration = self.object:getacceleration()
+	if not vector.equals(acceleration, {x = 0, y = -10, z = 0}) then
+		self.object:setacceleration({x = 0, y = -10, z = 0})
+	end
+	-- Turn to actual node when colliding with ground, or continue to move
+	local pos = self.object:getpos()
+	-- Position of bottom center point
+	local bcp = {x = pos.x, y = pos.y - 0.7, z = pos.z}
+	-- Avoid bugs caused by an unloaded node below
+	local bcn = minetest.get_node_or_nil(bcp)
+	local bcd = bcn and minetest.registered_nodes[bcn.name]
+	if bcn and
+			(not bcd or bcd.walkable or
+			(minetest.get_item_group(self.node.name, "float") ~= 0 and
+			bcd.liquidtype ~= "none")) then
 		if bcd and bcd.leveled and
-				bcnn == self.node.name then
+				bcn.name == self.node.name then
 			local addlevel = self.node.level
-			if addlevel == nil or addlevel <= 0 then
+			if not addlevel or addlevel <= 0 then
 				addlevel = bcd.leveled
 			end
 			if minetest.add_node_level(bcp, addlevel) == 0 then
@@ -113,60 +116,41 @@ falling_entity.on_step = function(self, dtime)
 		elseif bcd and bcd.buildable_to and
 				(minetest.get_item_group(self.node.name, "float") == 0 or
 				bcd.liquidtype == "none") then
-			play_node_sound(bcp, bcnn, "dug", self.sound_volume)
 			minetest.remove_node(bcp)
 			return
 		end
-		local np = {x=bcp.x, y=bcp.y+math.sign(gravity), z=bcp.z}
+		local np = {x = bcp.x, y = bcp.y + 1, z = bcp.z}
 		-- Check what's here
 		local n2 = minetest.get_node(np)
+		local nd = minetest.registered_nodes[n2.name]
 		-- If it's not air or liquid, remove node and replace it with
 		-- it's drops
-		if n2.name ~= "air" and (not minetest.registered_nodes[n2.name] or
-				minetest.registered_nodes[n2.name].liquidtype == "none") then
-			play_node_sound(np, n2.name, "dug", self.sound_volume)
+		if n2.name ~= "air" and (not nd or nd.liquidtype == "none") then
 			minetest.remove_node(np)
-			if minetest.registered_nodes[n2.name].buildable_to == false then
-				if minetest.get_node(np).name == "air" then
-					-- Add dropped items
-					local drops = minetest.get_node_drops(n2.name, "")
-					for _, dropped_item in pairs(drops) do
-						minetest.add_item(np, dropped_item)
-					end
-				else
-					-- Sometimes there are not walkable chests or similar
-					local drops = minetest.get_node_drops(self.node.name, "")
-					for _, dropped_item in pairs(drops) do
-						minetest.add_item(np, dropped_item)
-					end
-					self.object:remove()
-					return
+			if nd and nd.buildable_to == false then
+				-- Add dropped items
+				local drops = minetest.get_node_drops(n2.name, "")
+				for _, dropped_item in pairs(drops) do
+					minetest.add_item(np, dropped_item)
 				end
 			end
 			-- Run script hook
-			local _, callback
-			for _, callback in ipairs(minetest.registered_on_dignodes) do
-				callback(np, n2, nil)
+			for _, callback in pairs(minetest.registered_on_dignodes) do
+				callback(np, n2)
 			end
 		end
-		self.object:remove()
-		-- fix crashes if node isn't given
-		if not self.node.name then
-			minetest.log("error", "[falling extras] falling object near "..minetest.pos_to_string(np).." had no node…")
-			return
+		-- Create node and remove entity
+		if minetest.registered_nodes[self.node.name] then
+			minetest.add_node(np, self.node)
 		end
-		-- Play sound, set node, remove entity and damage player(s)
-		play_node_sound(np, self.node.name, "dug", self.sound_volume)	-- The place sound sounds weird
-		minetest.add_node(np, self.node)
-		nodeupdate(np)
-		damage_near_players(np, self.sound_volume)
+		self.object:remove()
+		minetest.check_for_falling(np)
 		return
 	end
-	local vely = self.object:getvelocity().y
-	if vely == 0 then
-		self.object:setpos(vector.round(self.object:getpos()))
-	else
-		self.sound_volume = vely * 0.1
+	local vel = self.object:getvelocity()
+	if vector.equals(vel, {x = 0, y = 0, z = 0}) then
+		local npos = self.object:getpos()
+		self.object:setpos(vector.round(npos))
 	end
 end
 
