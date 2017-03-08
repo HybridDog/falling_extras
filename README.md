@@ -13,5 +13,4 @@ If you got ideas or found bugs, please tell them to me.
 
 TODO:  
 — add screenshot  
-— update for the newest falling mod  
 — look for that protecting

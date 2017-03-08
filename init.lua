@@ -89,13 +89,18 @@ falling_entity.sound_volume = 1
 falling_entity.on_step = function(self, dtime)
 	-- Set gravity
 	local acceleration = self.object:getacceleration()
-	if not vector.equals(acceleration, {x = 0, y = -10, z = 0}) then
-		self.object:setacceleration({x = 0, y = -10, z = 0})
+
+	local gravity = minetest.get_gravity()
+	if not vector.equals(acceleration, {x = 0, y = -gravity, z = 0}) then
+		self.object:setacceleration{x = 0, y = -gravity, z = 0}
 	end
+
 	-- Turn to actual node when colliding with ground, or continue to move
 	local pos = self.object:getpos()
 	-- Position of bottom center point
-	local bcp = {x = pos.x, y = pos.y - 0.7, z = pos.z}
+
+	local bcp = {x = pos.x, y = pos.y - 0.7 * math.sign(gravity), z = pos.z}
+
 	-- Avoid bugs caused by an unloaded node below
 	local bcn = minetest.get_node_or_nil(bcp)
 	local bcd = bcn and minetest.registered_nodes[bcn.name]
@@ -116,23 +121,47 @@ falling_entity.on_step = function(self, dtime)
 		elseif bcd and bcd.buildable_to and
 				(minetest.get_item_group(self.node.name, "float") == 0 or
 				bcd.liquidtype == "none") then
+
+			play_node_sound(bcp, bcnn, "dug", self.sound_volume)
+
 			minetest.remove_node(bcp)
 			return
 		end
-		local np = {x = bcp.x, y = bcp.y + 1, z = bcp.z}
+
+		local np = {x = bcp.x, y = bcp.y + math.sign(gravity), z = bcp.z}
+
 		-- Check what's here
 		local n2 = minetest.get_node(np)
 		local nd = minetest.registered_nodes[n2.name]
 		-- If it's not air or liquid, remove node and replace it with
 		-- it's drops
 		if n2.name ~= "air" and (not nd or nd.liquidtype == "none") then
+
+			play_node_sound(np, n2.name, "dug", self.sound_volume)
+
 			minetest.remove_node(np)
 			if nd and nd.buildable_to == false then
-				-- Add dropped items
-				local drops = minetest.get_node_drops(n2.name, "")
-				for _, dropped_item in pairs(drops) do
-					minetest.add_item(np, dropped_item)
+
+				-- Removing didn't necessarily succeed
+				if minetest.get_node(np).name == "air" then
+
+					-- Add dropped items
+					local drops = minetest.get_node_drops(n2.name, "")
+					for _, dropped_item in pairs(drops) do
+						minetest.add_item(np, dropped_item)
+					end
+
+				else
+					-- Sometimes there are not walkable chests or similar
+					-- If so, drop the falling item
+					local drops = minetest.get_node_drops(self.node.name, "")
+					for i = 1,#drops do
+						minetest.add_item(np, drops[i])
+					end
+					self.object:remove()
+					return
 				end
+
 			end
 			-- Run script hook
 			for _, callback in pairs(minetest.registered_on_dignodes) do
@@ -144,14 +173,23 @@ falling_entity.on_step = function(self, dtime)
 			minetest.add_node(np, self.node)
 		end
 		self.object:remove()
+
+		-- Play sound, and damage player(s)
+		-- The place sound sounds weird, so dug is used
+		play_node_sound(np, self.node.name, "dug", self.sound_volume)
+		damage_near_players(np, self.sound_volume)
+
 		minetest.check_for_falling(np)
 		return
 	end
-	local vel = self.object:getvelocity()
-	if vector.equals(vel, {x = 0, y = 0, z = 0}) then
-		local npos = self.object:getpos()
-		self.object:setpos(vector.round(npos))
+
+	local vely = self.object:getvelocity().y
+	if vely ~= 0 then -- Remember the velocity
+		self.sound_volume = vely * 0.1
+	else -- Slip to a valid position to continue falling
+		self.object:setpos(vector.round(pos))
 	end
+
 end
 
 minetest.register_entity(":__builtin:falling_node", falling_entity)
