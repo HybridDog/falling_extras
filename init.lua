@@ -29,7 +29,7 @@ if not minetest.get_gravity then
 	local gravity,grav_updating = 10
 	function minetest.get_gravity()
 		if not grav_updating then
-			gravity = tonumber(minetest.setting_get"movement_gravity")
+			gravity = tonumber(minetest.settings:get"movement_gravity")
 				or gravity
 			grav_updating = true
 			minetest.after(50, function()
@@ -38,28 +38,11 @@ if not minetest.get_gravity then
 		end
 		return gravity
 	end
-
-	-- Override setting functions a bit
-	local set_setting = minetest.setting_set
-	function minetest.setting_set(name, v, ...)
-		if name == "gravity" then
-			name = "movement_gravity"
-			gravity = tonumber(v) or gravity
-		end
-		return set_setting(name, v, ...)
-	end
-	local get_setting = minetest.setting_get
-	function minetest.setting_get(name, ...)
-		if name == "gravity" then
-			name = "movement_gravity"
-		end
-		return get_setting(name, ...)
-	end
 end
 
 -- Used to damage players when sth falls onto them
 local damage_near_players
-local enable_damage = minetest.setting_getbool"enable_damage"
+local enable_damage = minetest.settings:get_bool"enable_damage"
 if enable_damage ~= false then
 	function damage_near_players(np, fdmg)
 		local dmg = math.floor(math.abs(fdmg) + 0.5)
