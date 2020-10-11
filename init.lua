@@ -1,5 +1,9 @@
 local load_time_start = os.clock()
 
+-- The setting may change in-game but for simplicity we don't support this.
+local movement_gravity = tonumber(minetest.settings:get("movement_gravity"))
+	or 9.81
+
 local sound_count = 0
 local function play_node_sound(pos, name, alt, gain_multiplier)
 	if sound_count > 50 then
@@ -21,22 +25,6 @@ local function play_node_sound(pos, name, alt, gain_multiplier)
 		minetest.after(0.1, function()
 			sound_count = 0
 		end)
-	end
-end
-
--- This is used to cache the actual movement_gravity
-if not minetest.get_gravity then
-	local gravity,grav_updating = 10
-	function minetest.get_gravity()
-		if not grav_updating then
-			gravity = tonumber(minetest.settings:get"movement_gravity")
-				or gravity
-			grav_updating = true
-			minetest.after(50, function()
-				grav_updating = false
-			end)
-		end
-		return gravity
 	end
 end
 
@@ -69,11 +57,11 @@ end
 local falling_entity = minetest.registered_entities["__builtin:falling_node"]
 falling_entity.makes_footstep_sound = true
 falling_entity.sound_volume = 1
-falling_entity.on_step = function(self, dtime)
+falling_entity.on_step = function(self)
 	-- Set gravity
 	local acceleration = self.object:getacceleration()
 
-	local gravity = minetest.get_gravity()
+	local gravity = movement_gravity
 	if not vector.equals(acceleration, {x = 0, y = -gravity, z = 0}) then
 		self.object:setacceleration{x = 0, y = -gravity, z = 0}
 	end
@@ -105,7 +93,7 @@ falling_entity.on_step = function(self, dtime)
 				(minetest.get_item_group(self.node.name, "float") == 0 or
 				bcd.liquidtype == "none") then
 
-			play_node_sound(bcp, bcnn, "dug", self.sound_volume)
+			play_node_sound(bcp, bcn.name, "dug", self.sound_volume)
 
 			minetest.remove_node(bcp)
 			return
