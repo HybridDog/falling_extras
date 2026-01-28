@@ -39,7 +39,7 @@ if enable_damage ~= false then
 		end
 		for _,obj in pairs(minetest.get_objects_inside_radius(np, 2)) do
 			if obj:is_player() then
-				local pos = obj:getpos()
+				local pos = obj:get_pos()
 				if math.abs(np.x - pos.x) < 0.45
 				and math.abs(np.z - pos.z) < 0.45
 				and pos.y < np.y + 0.5
@@ -55,19 +55,19 @@ else
 end
 
 local falling_entity = minetest.registered_entities["__builtin:falling_node"]
-falling_entity.makes_footstep_sound = true
+falling_entity.initial_properties.makes_footstep_sound = true
 falling_entity.sound_volume = 1
 falling_entity.on_step = function(self)
 	-- Set gravity
-	local acceleration = self.object:getacceleration()
+	local acceleration = self.object:get_acceleration()
 
 	local gravity = movement_gravity
 	if not vector.equals(acceleration, {x = 0, y = -gravity, z = 0}) then
-		self.object:setacceleration{x = 0, y = -gravity, z = 0}
+		self.object:set_acceleration{x = 0, y = -gravity, z = 0}
 	end
 
 	-- Turn to actual node when colliding with ground, or continue to move
-	local pos = self.object:getpos()
+	local pos = self.object:get_pos()
 	-- Position of bottom center point
 
 	local bcp = {x = pos.x, y = pos.y - 0.7 * math.sign(gravity), z = pos.z}
@@ -154,11 +154,11 @@ falling_entity.on_step = function(self)
 		return
 	end
 
-	local vely = self.object:getvelocity().y
+	local vely = self.object:get_velocity().y
 	if vely ~= 0 then -- Remember the velocity
 		self.sound_volume = vely * 0.1
 	else -- Slip to a valid position to continue falling
-		self.object:setpos(vector.round(pos))
+		self.object:set_pos(vector.round(pos))
 	end
 
 end
